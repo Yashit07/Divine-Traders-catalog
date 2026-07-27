@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 import BusinessCard from './components/BusinessCard'
 import CategoryTabs from './components/CategoryTabs'
 import ProductCard from './components/ProductCard'
@@ -315,6 +316,8 @@ export default function App() {
       <footer className="text-center text-xs text-cocoa-500 py-6 safe-bottom">
         © {new Date().getFullYear()} {branding.business_name || 'Divine Traders'} — Made with 🌸
       </footer>
+
+      <Analytics />
     </div>
   )
 }
