@@ -1,0 +1,6 @@
+{
+  "buildCommand": "yarn build",
+  "outputDirectory": "build",
+  "framework": "vite",
+  "rewrites": [ { "source": "/(.*)", "destination": "/" } ]
+}
