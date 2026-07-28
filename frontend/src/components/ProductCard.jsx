@@ -20,7 +20,8 @@ export default function ProductCard({ product, showPrices, editMode, onEdit, onD
       <div className="relative aspect-square bg-gradient-to-br from-ivory-50 via-blush-50 to-gold-50 overflow-hidden">
         {imageUrl ? (
           <img src={imageUrl} alt={product.name} loading="lazy"
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="w-full h-full object-contain p-2 transition-transform duration-500 group-hover:scale-105"
+
             onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
         ) : (
