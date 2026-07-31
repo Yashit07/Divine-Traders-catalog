@@ -11,7 +11,13 @@ export default function ProductCard({ product, showPrices, editMode, onEdit, onD
   const hasVariants = (product.variants || []).length > 0
   const [variantIdx, setVariantIdx] = useState(0)
   const activeVariant = hasVariants ? product.variants[variantIdx] : null
-  const imageUrl = (activeVariant && activeVariant.image_url) || product.image_url
+  const rawImageUrl = (activeVariant && activeVariant.image_url) || product.image_url
+
+  // Route image through wsrv.nl CDN (shrinks 10MB iPhone photos to ~100KB WebP automatically)
+  const imageUrl = rawImageUrl
+    ? `https://wsrv.nl/?url=${encodeURIComponent(rawImageUrl)}&w=800&q=80&output=webp`
+    : null
+
   const price = activeVariant ? activeVariant.price : product.price
 
   return (
@@ -45,7 +51,7 @@ export default function ProductCard({ product, showPrices, editMode, onEdit, onD
 
       {/* Body */}
       <div className="p-3 sm:p-4 flex-1 flex flex-col">
-        {/* Brand + Category chips (no overlap now) */}
+        {/* Brand + Category chips */}
         <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
           <span className="inline-flex items-center gap-1 bg-blush-50 border border-blush-100 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold text-rose-500 max-w-full">
             <span className="text-gold-500">✦</span>
