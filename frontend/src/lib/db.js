@@ -1,128 +1,86 @@
-import { supabase, STORAGE_BUCKET } from './supabase'
-import { SEED_PRODUCTS, DEFAULT_BRANDING } from './seed'
+import { supabase } from './supabase'
 
-// ---- Products ----
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+function getAuthHeader() {
+  const token = sessionStorage.getItem('dt_admin_token')
+  return token ? { 'Authorization': `Bearer ${token}` } : {}
+}
+
+async function apiRequest(path, method = 'GET', body = null) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...getAuthHeader(),
+  }
+  const opts = { method, headers }
+  if (body) opts.body = JSON.stringify(body)
+
+  const res = await fetch(`${API_BASE}${path}`, opts)
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.detail || `Server error (${res.status})`)
+  }
+  return res.json()
+}
+
+export async function adminLogin(password) {
+  const data = await apiRequest('/api/admin/login', 'POST', { password })
+  if (data.token) {
+    sessionStorage.setItem('dt_admin_token', data.token)
+  }
+  return data
+}
+
+export function logoutAdmin() {
+  sessionStorage.removeItem('dt_admin_token')
+}
+
+// READ OPERATIONS (Directly via Supabase Anon Client - Read-Only)
 export async function fetchProducts() {
   const { data, error } = await supabase
     .from('products')
-    .select('*, variants(*)')
-    .order('sort_order', { ascending: true })
+    .select('*')
+    .order('created_at', { ascending: false })
   if (error) throw error
-  // sort variants inside each product
-  return (data || []).map((p) => ({
-    ...p,
-    variants: (p.variants || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
-  }))
+  return data || []
 }
 
-export async function insertProduct(product) {
-  const { variants, ...base } = product
-  const { data, error } = await supabase.from('products').insert(base).select().single()
+export async function fetchBranding() {
+  const { data, error } = await supabase
+    .from('branding')
+    .select('*')
+    .limit(1)
+    .maybeSingle()
   if (error) throw error
-  if (variants && variants.length) {
-    const rows = variants.map((v, i) => ({ ...v, product_id: data.id, sort_order: i }))
-    const { error: vErr } = await supabase.from('variants').insert(rows)
-    if (vErr) throw vErr
-  }
   return data
 }
 
-export async function updateProduct(id, patch) {
-  const { variants, ...base } = patch
-  const { error } = await supabase.from('products').update(base).eq('id', id)
-  if (error) throw error
-  if (Array.isArray(variants)) {
-    // Replace variants: delete existing then insert new
-    const { error: delErr } = await supabase.from('variants').delete().eq('product_id', id)
-    if (delErr) throw delErr
-    if (variants.length) {
-      const rows = variants.map((v, i) => {
-        const { id: _drop, ...clean } = v
-        return { ...clean, product_id: id, sort_order: i }
-      })
-      const { error: insErr } = await supabase.from('variants').insert(rows)
-      if (insErr) throw insErr
-    }
-  }
+export async function ensureSeeded() {
+  const products = await fetchProducts()
+  return { seeded: false, count: products.length }
+}
+
+// WRITE OPERATIONS (Proxy through backend via JWT)
+export async function insertProduct(payload) {
+  return apiRequest('/api/products', 'POST', payload)
+}
+
+export async function updateProduct(id, payload) {
+  return apiRequest(`/api/products/${id}`, 'PUT', payload)
 }
 
 export async function deleteProduct(id) {
-  const { error } = await supabase.from('products').delete().eq('id', id)
-  if (error) throw error
-}
-
-// ---- Branding ----
-export async function fetchBranding() {
-  const { data, error } = await supabase.from('branding').select('*').limit(1).maybeSingle()
-  if (error) throw error
-  return data
-}
-
-export async function upsertBranding(patch) {
-  const existing = await fetchBranding()
-  if (existing) {
-    const { error } = await supabase.from('branding').update(patch).eq('id', existing.id)
-    if (error) throw error
-    return { ...existing, ...patch }
-  }
-  const { data, error } = await supabase.from('branding').insert({ ...DEFAULT_BRANDING, ...patch }).select().single()
-  if (error) throw error
-  return data
-}
-
-// ---- Storage ----
-export async function uploadImage(file, prefix = 'product') {
-  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
-  const path = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
-  const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, {
-    cacheControl: '3600', upsert: false, contentType: file.type,
-  })
-  if (error) throw error
-  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path)
-  return data.publicUrl
-}
-
-// ---- One-time seeding (guarded against React StrictMode double-invocation) ----
-let __seedPromise = null
-export function _resetSeedGuard() { __seedPromise = null }
-
-export async function ensureSeeded() {
-  if (__seedPromise) return __seedPromise
-  __seedPromise = (async () => {
-    // Re-check count inside the lock in case another tab / render already seeded
-    const { count, error } = await supabase.from('products').select('*', { count: 'exact', head: true })
-    if (error) throw error
-    if ((count || 0) > 0) return { seeded: false, count }
-    // Bulk insert products (no variants). Chunk to be safe.
-    const chunkSize = 50
-    for (let i = 0; i < SEED_PRODUCTS.length; i += chunkSize) {
-      const chunk = SEED_PRODUCTS.slice(i, i + chunkSize)
-      const { error: insErr } = await supabase.from('products').insert(chunk)
-      if (insErr) throw insErr
-    }
-    // Ensure branding row exists
-    const existing = await fetchBranding()
-    if (!existing) {
-      const { error: bErr } = await supabase.from('branding').insert(DEFAULT_BRANDING)
-      if (bErr) throw bErr
-    }
-    return { seeded: true, count: SEED_PRODUCTS.length }
-  })().catch((err) => {
-    // Clear the lock on failure so a manual retry can try again cleanly
-    __seedPromise = null
-    throw err
-  })
-  return __seedPromise
+  return apiRequest(`/api/products/${id}`, 'DELETE')
 }
 
 export async function resetCatalog() {
-  // Delete all products (cascade deletes variants)
-  const { error } = await supabase.from('products').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-  if (error) throw error
-  _resetSeedGuard()
-  await ensureSeeded()
+  return apiRequest('/api/products/reset', 'POST')
+}
+
+export async function upsertBranding(patch) {
+  return apiRequest('/api/branding', 'POST', patch)
 }
 
 export function exportJson(products, branding) {
-  return JSON.stringify({ exported_at: new Date().toISOString(), branding, products }, null, 2)
+  return JSON.stringify({ products, branding }, null, 2)
 }
