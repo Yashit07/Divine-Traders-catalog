@@ -11,7 +11,7 @@ import ToastStack from './components/Toast'
 import WishlistDrawer from './components/WishlistDrawer'
 import {
   fetchProducts, insertProduct, updateProduct, deleteProduct,
-  fetchBranding, upsertBranding, ensureSeeded, resetCatalog, exportJson,
+  fetchBranding, upsertBranding, ensureSeeded, resetCatalog, exportJson, logoutAdmin
 } from './lib/db'
 import { SUPABASE_READY } from './lib/supabase'
 import { DEFAULT_BRANDING } from './lib/seed'
@@ -19,7 +19,6 @@ import { toast } from './lib/toast'
 
 const LS_KEYS = {
   showPrices: 'dt_show_prices',
-  editMode:   'dt_edit_mode',
   wishlist:   'dt_wishlist_v1',
 }
 
@@ -38,33 +37,44 @@ export default function App() {
   const [category, setCategory] = useState('All')
   const [query, setQuery] = useState('')
 
-  // Persisted admin/buyer state
+  // Admin & Buyer state
   const [showPrices, setShowPrices] = useState(() => lsGet(LS_KEYS.showPrices, false))
-  const [editMode, setEditMode] = useState(() => lsGet(LS_KEYS.editMode, false))
-  const [wishlist, setWishlist] = useState(() => lsGet(LS_KEYS.wishlist, [])) // array of product IDs
+  const [editMode, setEditMode] = useState(false)
+  const [wishlist, setWishlist] = useState(() => lsGet(LS_KEYS.wishlist, []))
 
+  // Modal & Drawer states
   const [unlockOpen, setUnlockOpen] = useState(false)
   const [editorOpen, setEditorOpen] = useState(false)
   const [brandingOpen, setBrandingOpen] = useState(false)
   const [wishlistOpen, setWishlistOpen] = useState(false)
   const [editing, setEditing] = useState(null)
 
+  // Expanded Product & Lightbox Player states
+  const [selectedProduct, setSelectedProduct] = useState(null)
+  const [fullScreenImage, setFullScreenImage] = useState(null)
+  const [zoomScale, setZoomScale] = useState(1)
+
   const catalogRef = useRef(null)
 
-  // Persist state
+  // Zoom handlers
+  const handleZoomIn = () => setZoomScale(prev => Math.min(prev + 0.5, 3.5))
+  const handleZoomOut = () => setZoomScale(prev => Math.max(prev - 0.5, 1))
+  const resetZoom = () => setZoomScale(1)
+  const closePhotoPlayer = () => { setFullScreenImage(null); resetZoom() }
+
+  // Persist local preferences
   useEffect(() => { lsSet(LS_KEYS.showPrices, showPrices) }, [showPrices])
-  useEffect(() => { lsSet(LS_KEYS.editMode, editMode) }, [editMode])
   useEffect(() => { lsSet(LS_KEYS.wishlist, wishlist) }, [wishlist])
 
   async function loadAll() {
     setLoading(true); setLoadError(''); setNeedsSetup(false)
     try {
-      if (!SUPABASE_READY) throw new Error('Supabase env vars missing')
+      if (!SUPABASE_READY) throw new Error('Supabase configuration missing')
       const seedResult = await ensureSeeded()
-      if (seedResult.seeded) toast.success(`Catalog seeded with ${seedResult.count} products ✨`)
+      if (seedResult.seeded) toast.success(`Catalog loaded ✨`)
       const [prods, brand] = await Promise.all([fetchProducts(), fetchBranding()])
       setProducts(prods)
-      if (brand) setBranding({ ...brand, phone2: null })
+      if (brand) setBranding(brand)
     } catch (err) {
       console.error(err)
       const msg = (err && (err.message || String(err))) || 'Failed to load catalog.'
@@ -87,7 +97,7 @@ export default function App() {
     return products.filter(p => {
       if (category !== 'All' && p.category !== category) return false
       if (!q) return true
-      const hay = `${p.brand} ${p.name} ${p.description || ''} ${p.packaging || ''}`.toLowerCase()
+      const hay = `${p.brand || ''} ${p.name || ''} ${p.description || ''} ${p.packaging || ''}`.toLowerCase()
       return hay.includes(q)
     })
   }, [products, category, query])
@@ -105,39 +115,68 @@ export default function App() {
   }
 
   async function handleSaveProduct(payload) {
-    if (editing && editing.id) await updateProduct(editing.id, payload)
-    else await insertProduct(payload)
-    const prods = await fetchProducts(); setProducts(prods)
+    try {
+      if (editing && editing.id) {
+        await updateProduct(editing.id, payload)
+        toast.success('Product updated successfully')
+      } else {
+        await insertProduct(payload)
+        toast.success('Product added successfully')
+      }
+      const prods = await fetchProducts()
+      setProducts(prods)
+      setEditorOpen(false)
+    } catch (err) {
+      toast.error(err.message || 'Failed to save product')
+    }
   }
+
   async function handleDeleteProduct(product) {
-    if (!confirm(`Delete “${product.brand} — ${product.name}”?`)) return
+    if (!confirm(`Delete “${product.brand ? product.brand + ' — ' : ''}${product.name}”?`)) return
     try {
       await deleteProduct(product.id)
-      const prods = await fetchProducts(); setProducts(prods)
+      const prods = await fetchProducts()
+      setProducts(prods)
       toast.success('Product deleted')
-    } catch (err) { toast.error(err.message || 'Delete failed') }
+    } catch (err) {
+      toast.error(err.message || 'Delete failed')
+    }
   }
+
   async function handleReset() {
-    if (!confirm('Reset the entire catalog back to the default 125 seed products?')) return
+    if (!confirm('Reset the entire catalog back to default?')) return
     const tId = toast.loading('Resetting catalog…')
     try {
       await resetCatalog()
-      const prods = await fetchProducts(); setProducts(prods)
-      toast.dismiss(tId); toast.success('Catalog reset to seed')
-    } catch (err) { toast.dismiss(tId); toast.error(err.message || 'Reset failed') }
+      const prods = await fetchProducts()
+      setProducts(prods)
+      toast.dismiss(tId)
+      toast.success('Catalog reset')
+    } catch (err) {
+      toast.dismiss(tId)
+      toast.error(err.message || 'Reset failed')
+    }
   }
+
   function handleExport() {
     const json = exportJson(products, branding)
     const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url
-    a.download = `divine-traders-catalog-${new Date().toISOString().slice(0,10)}.json`
+    a.download = `catalog-${new Date().toISOString().slice(0,10)}.json`
     a.click(); URL.revokeObjectURL(url)
     toast.success('Catalog exported')
   }
+
   async function handleSaveBranding(patch) {
-    const updated = await upsertBranding(patch)
-    setBranding({ ...updated, phone2: null })
+    try {
+      const updated = await upsertBranding(patch)
+      setBranding(updated)
+      setBrandingOpen(false)
+      toast.success('Branding saved')
+    } catch (err) {
+      toast.error(err.message || 'Failed to update branding')
+    }
   }
 
   function scrollToCatalog() {
@@ -150,19 +189,21 @@ export default function App() {
     const waUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`
     if (navigator.share) {
       navigator.share({ title: branding.business_name || 'Divine Traders', text: shareText, url: window.location.href })
-        .catch(() => window.open(waUrl, '_blank'))
+        .catch((err) => {
+          if (err.name !== 'AbortError') window.open(waUrl, '_blank')
+        })
     } else {
       window.open(waUrl, '_blank')
     }
   }
 
-  const isUnlocked = showPrices || editMode
+  const isUnlocked = editMode
 
   function handleLockIconClick() {
-    // If unlocked, tapping the icon locks everything back.
     if (isUnlocked) {
-      setShowPrices(false); setEditMode(false)
-      toast.info('Locked — back to buyer view')
+      setEditMode(false)
+      logoutAdmin()
+      toast.info('Locked — returned to buyer view')
     } else {
       setUnlockOpen(true)
     }
@@ -185,7 +226,7 @@ export default function App() {
             onBranding={() => setBrandingOpen(true)}
             onExport={handleExport}
             onReset={handleReset}
-            onExit={() => { setEditMode(false); toast.info('Exited edit mode') }}
+            onExit={() => { setEditMode(false); logoutAdmin(); toast.info('Exited edit mode') }}
           />
         )}
 
@@ -199,7 +240,7 @@ export default function App() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search…"
+                placeholder="Search catalog…"
                 aria-label="Search catalog"
                 className="flex-1 min-w-0 bg-transparent outline-none text-sm sm:text-base text-cocoa-900 placeholder:text-cocoa-500"
               />
@@ -231,16 +272,17 @@ export default function App() {
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
               {filtered.map((p) => (
-                <ProductCard
-                  key={p.id}
-                  product={p}
-                  showPrices={showPrices}
-                  editMode={editMode}
-                  onEdit={(prod) => { setEditing(prod); setEditorOpen(true) }}
-                  onDelete={handleDeleteProduct}
-                  inWishlist={wishlistSet.has(p.id)}
-                  onToggleWishlist={toggleWishlist}
-                />
+                <div key={p.id} onClick={() => setSelectedProduct(p)} className="cursor-pointer transition-transform hover:-translate-y-1">
+                  <ProductCard
+                    product={p}
+                    showPrices={showPrices}
+                    editMode={editMode}
+                    onEdit={(prod) => { setEditing(prod); setEditorOpen(true) }}
+                    onDelete={handleDeleteProduct}
+                    inWishlist={wishlistSet.has(p.id)}
+                    onToggleWishlist={toggleWishlist}
+                  />
+                </div>
               ))}
             </div>
           )}
@@ -248,7 +290,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Floating action buttons (icons only) */}
+      {/* Floating action buttons */}
       <div className="fixed right-3 sm:right-5 z-40 flex flex-col gap-2 items-end" style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>
         {wishlist.length > 0 && (
           <button type="button" onClick={() => setWishlistOpen(true)}
@@ -271,11 +313,125 @@ export default function App() {
               ? 'bg-gradient-to-br from-emerald-500 to-emerald-400 text-white border-emerald-200'
               : 'bg-gradient-to-br from-rose-500 to-gold-400 text-white border-rose-200'
           }`}
-          title={isUnlocked ? 'Lock the site' : 'Unlock / Admin'}>
+          title={isUnlocked ? 'Lock Admin View' : 'Unlock / Admin'}>
           <span className="text-xl">{isUnlocked ? '🔓' : '🔒'}</span>
         </button>
       </div>
 
+      {/* --- PRODUCT DETAILS MODAL --- */}
+      {selectedProduct && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="relative card-surface rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-5 sm:p-7 shadow-2xl my-auto animate-in fade-in zoom-in-95 duration-200">
+            
+            <button
+              type="button"
+              onClick={() => setSelectedProduct(null)}
+              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-ivory-200 text-cocoa-700 hover:bg-rose-500 hover:text-white transition-colors flex items-center justify-center font-bold text-lg z-10"
+              aria-label="Close modal"
+            >
+              ✕
+            </button>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-center mt-2">
+              <div
+                onClick={() => setFullScreenImage(selectedProduct.image_url || selectedProduct.image)}
+                className="relative group cursor-zoom-in overflow-hidden rounded-2xl bg-ivory-100 border border-ivory-200 flex items-center justify-center"
+              >
+                <img
+                  src={selectedProduct.image_url || selectedProduct.image || '/placeholder.png'}
+                  alt={selectedProduct.name}
+                  className="w-full h-64 sm:h-80 object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-semibold tracking-wide transition-opacity backdrop-blur-[2px]">
+                  🔍 Tap to Expand & Zoom Photo
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-rose-500 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full w-fit">
+                  {selectedProduct.brand || selectedProduct.category}
+                </span>
+
+                <h2 className="font-display text-2xl font-bold text-cocoa-900 leading-tight">
+                  {selectedProduct.name}
+                </h2>
+
+                {selectedProduct.packaging && (
+                  <p className="text-xs text-cocoa-500 font-medium">
+                    📦 Packaging: {selectedProduct.packaging}
+                  </p>
+                )}
+
+                {showPrices && (
+                  <p className="text-2xl font-extrabold text-emerald-600">
+                    ₹{selectedProduct.price}
+                  </p>
+                )}
+
+                <p className="text-sm text-cocoa-700 leading-relaxed bg-ivory-50 p-3 rounded-xl border border-ivory-200 mt-1">
+                  {selectedProduct.description || 'Premium wholesale quality product available for bulk orders.'}
+                </p>
+
+                <div className="flex gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleWishlist(selectedProduct)}
+                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition border flex items-center justify-center gap-2 ${
+                      wishlistSet.has(selectedProduct.id)
+                        ? 'bg-rose-500 text-white border-rose-500'
+                        : 'bg-white text-rose-500 border-rose-200 hover:bg-rose-50'
+                    }`}
+                  >
+                    <span>{wishlistSet.has(selectedProduct.id) ? '♥ In Wishlist' : '♡ Add to Wishlist'}</span>
+                  </button>
+
+                  <a
+                    href={`https://wa.me/${branding.phone1 || ''}?text=Hi!%20I%20am%20interested%20in%20buying:%20${encodeURIComponent(selectedProduct.name)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-center text-sm transition flex items-center justify-center gap-1 shadow-md"
+                  >
+                    <span>💬 Inquiry</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* --- FULL-SCREEN PHOTO PLAYER --- */}
+      {fullScreenImage && (
+        <div className="fixed inset-0 z-[60] bg-black/95 flex flex-col items-center justify-center p-4 select-none backdrop-blur-md">
+          <button
+            type="button"
+            onClick={closePhotoPlayer}
+            className="absolute top-5 right-5 text-white bg-white/20 hover:bg-rose-600 rounded-full w-12 h-12 flex items-center justify-center font-bold text-xl transition-colors z-50 shadow-lg"
+            aria-label="Close photo viewer"
+          >
+            ✕
+          </button>
+
+          <div className="w-full h-full flex items-center justify-center overflow-hidden">
+            <img
+              src={fullScreenImage}
+              alt="Expanded view"
+              style={{ transform: `scale(${zoomScale})` }}
+              className="max-w-full max-h-[85vh] object-contain transition-transform duration-200 ease-out cursor-grab active:cursor-grabbing"
+            />
+          </div>
+
+          <div className="absolute bottom-6 flex items-center gap-4 bg-white/10 backdrop-blur-lg px-6 py-3 rounded-full z-50 text-white border border-white/20 shadow-2xl">
+            <button type="button" onClick={handleZoomOut} className="hover:text-amber-400 font-bold text-xl px-2 active:scale-95 transition" title="Zoom Out">−</button>
+            <span className="text-xs font-mono font-semibold min-w-[50px] text-center">{Math.round(zoomScale * 100)}%</span>
+            <button type="button" onClick={handleZoomIn} className="hover:text-amber-400 font-bold text-xl px-2 active:scale-95 transition" title="Zoom In">+</button>
+            <button type="button" onClick={resetZoom} className="hover:text-amber-400 text-xs font-semibold border-l border-white/20 pl-3 ml-1 active:scale-95 transition" title="Reset Zoom">Reset</button>
+          </div>
+        </div>
+      )}
+
+      {/* Modals & Drawers */}
       <UnlockModal
         open={unlockOpen}
         onClose={() => setUnlockOpen(false)}
@@ -283,8 +439,7 @@ export default function App() {
         onShowPrices={() => {
           setShowPrices(v => { const nv = !v; toast.info(nv ? 'Prices visible' : 'Prices hidden'); return nv })
         }}
-        onEditMode={() => { setEditMode(true); setUnlockOpen(false); toast.success('Edit mode unlocked ✨') }}
-        adminPassword={branding.admin_password || DEFAULT_BRANDING.admin_password}
+        onEditMode={() => setEditMode(true)}
       />
 
       <ProductEditor
