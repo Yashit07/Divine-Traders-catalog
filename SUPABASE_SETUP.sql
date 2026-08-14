@@ -87,4 +87,41 @@ drop policy if exists "anon delete product-images" on storage.objects;
 create policy "anon delete product-images" on storage.objects
   for delete to anon using (bucket_id = 'product-images');
 
+  -- =============================================
+-- 6. Permanent Shared Product Catalogs
+-- =============================================
+
+create table if not exists public.shared_catalogs (
+  id uuid primary key default gen_random_uuid(),
+  products jsonb not null default '[]'::jsonb,
+  created_at timestamptz default now()
+);
+
+-- Index for fast lookup by UUID
+create index if not exists shared_catalogs_created_at_idx
+  on public.shared_catalogs(created_at);
+
+-- Enable Row Level Security
+alter table public.shared_catalogs enable row level security;
+
+-- Customers need to be able to read shared catalogs
+drop policy if exists "anon read shared catalogs"
+  on public.shared_catalogs;
+
+create policy "anon read shared catalogs"
+  on public.shared_catalogs
+  for select
+  to anon
+  using (true);
+
+-- The website needs to create new shared catalogs
+drop policy if exists "anon create shared catalogs"
+  on public.shared_catalogs;
+
+create policy "anon create shared catalogs"
+  on public.shared_catalogs
+  for insert
+  to anon
+  with check (true);
+
 -- Done! Reload the app and it will auto-seed 125 products on first load.

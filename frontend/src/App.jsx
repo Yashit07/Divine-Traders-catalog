@@ -207,21 +207,7 @@ useEffect(() => {
     cancelled = true
   }
 }, [])
-  useEffect(() => {
-  const params = new URLSearchParams(window.location.search)
-  const catalog = params.get('catalog')
-
-  if (!catalog) return
-
-  const ids = catalog
-    .split(',')
-    .map(id => id.trim())
-    .filter(Boolean)
-
-  if (ids.length > 0) {
-    setSharedCatalogIds(ids)
-  }
-}, [])
+  
 
   const counts = useMemo(() => {
     const c = { All: products.length }

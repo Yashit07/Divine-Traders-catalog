@@ -41,8 +41,8 @@ export default function WishlistDrawer({
    * Customers cannot open that.
    */
   const publicSiteUrl =
-    import.meta.env.VITE_PUBLIC_SITE_URL ||
-    window.location.origin
+  import.meta.env.VITE_PUBLIC_SITE_URL ||
+  'https://www.divinetraders.biz'
 
   /*
    * Product names for WhatsApp message.
