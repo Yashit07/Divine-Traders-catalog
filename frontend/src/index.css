@@ -368,6 +368,369 @@ body {
   }
 }
 
+/* Mobile product viewer gestures */
+.product-viewer {
+  touch-action: pan-y;
+  will-change: transform;
+}
+
+.product-viewer-image-section {
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* =========================================================
+   PRODUCT IMAGE CLICK TARGET
+   ========================================================= */
+
+.product-viewer-image-button {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-in;
+
+  /*
+   * Let our React touch handlers control
+   * horizontal swipes and vertical pull-down.
+   */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.product-viewer-image-button img {
+  pointer-events: none;
+}
+
+/* =========================================================
+   GESTURE HINTS
+   ========================================================= */
+
+.product-gesture-hint {
+  position: absolute;
+  z-index: 20;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(43, 24, 16, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+  animation: productGestureHint 2200ms ease-in-out forwards;
+}
+
+.product-gesture-hint span:first-child,
+.product-gesture-hint span:last-child {
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
+
+.product-gesture-hint-swipe {
+  top: 9.2rem;
+}
+
+.product-gesture-hint-close {
+  top: 1.1rem;
+  bottom: auto;
+}
+
+/* =========================================================
+   FULLSCREEN IMAGE VIEWER
+   ========================================================= */
+
+.product-fullscreen-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 7, 5, 0.96);
+  animation: productFullscreenIn 220ms ease-out forwards;
+  touch-action: none;
+}
+
+.product-fullscreen-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.product-fullscreen-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 2.5rem 3.5rem;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  animation: productFullscreenImageIn 220ms ease-out;
+}
+
+/* =========================================================
+   FULLSCREEN CLOSE BUTTON
+   ========================================================= */
+
+.product-fullscreen-close {
+  position: absolute;
+  z-index: 20;
+  top: max(1rem, env(safe-area-inset-top));
+  right: max(1rem, env(safe-area-inset-right));
+  width: 3.25rem;
+  height: 3.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: white;
+  font-size: 1.35rem;
+  font-weight: 500;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.product-fullscreen-close:hover {
+  transform: scale(1.08);
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* =========================================================
+   FULLSCREEN ARROWS
+   ========================================================= */
+
+.product-fullscreen-arrow {
+  position: absolute;
+  z-index: 20;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3.25rem;
+  height: 3.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  font-size: 2.2rem;
+  line-height: 1;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.product-fullscreen-arrow:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.product-fullscreen-arrow-left {
+  left: 1.25rem;
+}
+
+.product-fullscreen-arrow-right {
+  right: 1.25rem;
+}
+
+.product-fullscreen-arrow-left:hover {
+  transform: translateY(-50%) scale(1.08);
+}
+
+.product-fullscreen-arrow-right:hover {
+  transform: translateY(-50%) scale(1.08);
+}
+
+/* =========================================================
+   FULLSCREEN COUNTER
+   ========================================================= */
+
+.product-fullscreen-counter {
+  position: absolute;
+  z-index: 20;
+  left: 50%;
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.7rem;
+  font-weight: 700;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* =========================================================
+   FULLSCREEN SWIPE HINT
+   ========================================================= */
+
+.product-fullscreen-swipe-hint {
+  position: absolute;
+  z-index: 20;
+  left: 50%;
+  bottom: max(4.5rem, calc(env(safe-area-inset-bottom) + 3.5rem));
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  opacity: 0;
+  animation: fullscreenSwipeHint 1800ms ease-out 250ms forwards;
+}
+
+/* =========================================================
+   ANIMATIONS
+   ========================================================= */
+
+@keyframes productGestureHint {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px);
+  }
+
+  15% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  75% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+}
+
+@keyframes productFullscreenIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes productFullscreenImageIn {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fullscreenSwipeHint {
+  0% {
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 0.7;
+  }
+
+  75% {
+    opacity: 0.7;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+/* =========================================================
+   MOBILE FULLSCREEN VIEWER
+   ========================================================= */
+
+@media (max-width: 768px) {
+  .product-fullscreen-image {
+    padding: 2rem 0.75rem;
+  }
+
+  .product-fullscreen-close {
+    width: 3.1rem;
+    height: 3.1rem;
+    font-size: 1.25rem;
+  }
+
+  .product-fullscreen-arrow {
+    width: 2.7rem;
+    height: 2.7rem;
+    font-size: 1.9rem;
+  }
+
+  .product-fullscreen-arrow-left {
+    left: 0.55rem;
+  }
+
+  .product-fullscreen-arrow-right {
+    right: 0.55rem;
+  }
+
+  .product-fullscreen-swipe-hint {
+    font-size: 0.62rem;
+  }
+}
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .product-gesture-hint,
+  .product-fullscreen-viewer,
+  .product-fullscreen-image,
+  .product-fullscreen-swipe-hint {
+    animation: none !important;
+  }
+
+  .product-fullscreen-close,
+  .product-fullscreen-arrow {
+    transition: none !important;
+  }
+}
+
 ::-webkit-scrollbar { height: 8px; width: 8px; }
 ::-webkit-scrollbar-thumb { background: rgba(212, 163, 116, 0.4); border-radius: 999px; }
 ::-webkit-scrollbar-track { background: transparent; }
