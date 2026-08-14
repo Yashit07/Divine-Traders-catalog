@@ -3,7 +3,6 @@ import ProductCard from './ProductCard'
 
 export default function SharedCatalog({
   products,
-  showPrices,
   onClose,
 }) {
   const selectedProducts = products || []
@@ -729,8 +728,7 @@ export default function SharedCatalog({
               }
             >
               <ProductCard
-                product={activeProduct}
-                showPrices={showPrices}
+                product={activeProduct}                
                 editMode={false}
                 inWishlist={false}
                 onToggleWishlist={() => {}}

@@ -29,9 +29,8 @@ import { DEFAULT_BRANDING } from './lib/seed'
 import { toast } from './lib/toast'
 
 const LS_KEYS = {
-  showPrices: 'dt_show_prices',
-  editMode:   'dt_edit_mode',
-  wishlist:   'dt_wishlist_v1',
+  editMode: 'dt_edit_mode',
+  wishlist: 'dt_wishlist_v1',
 }
 
 function lsGet(k, def) {
@@ -41,7 +40,6 @@ function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)) } catch 
 
 function ProgressiveProductGrid({
   products,
-  showPrices,
   editMode,
   wishlistSet,
   onEdit,
@@ -93,7 +91,6 @@ function ProgressiveProductGrid({
           <ProductCard
             key={product.id}
             product={product}
-            showPrices={showPrices}
             editMode={editMode}
             onEdit={onEdit}
             onDelete={onDelete}
@@ -125,7 +122,6 @@ export default function App() {
   const [query, setQuery] = useState('')
 
   // Persisted admin/buyer state
-  const [showPrices, setShowPrices] = useState(() => lsGet(LS_KEYS.showPrices, false))
   const [editMode, setEditMode] = useState(() => lsGet(LS_KEYS.editMode, false))
   const [wishlist, setWishlist] = useState(() => lsGet(LS_KEYS.wishlist, [])) // array of product IDs
 
@@ -140,7 +136,6 @@ const [editing, setEditing] = useState(null)
 const catalogRef = useRef(null)
 
   // Persist state
-  useEffect(() => { lsSet(LS_KEYS.showPrices, showPrices) }, [showPrices])
   useEffect(() => { lsSet(LS_KEYS.editMode, editMode) }, [editMode])
   useEffect(() => { lsSet(LS_KEYS.wishlist, wishlist) }, [wishlist])
 
@@ -289,16 +284,17 @@ useEffect(() => {
     }
   }
 
-  const isUnlocked = showPrices || editMode
+const isUnlocked = editMode  
 
   function handleLockIconClick() {
     // If unlocked, tapping the icon locks everything back.
     if (isUnlocked) {
-      setShowPrices(false); setEditMode(false)
-      toast.info('Locked — back to buyer view')
-    } else {
-      setUnlockOpen(true)
-    }
+  setEditMode(false)
+
+  toast.info('Locked — back to buyer view')
+} else {
+  setUnlockOpen(true)
+}
   }
 
   return (
@@ -364,7 +360,6 @@ useEffect(() => {
           ) : (
             <ProgressiveProductGrid
   products={filtered}
-  showPrices={showPrices}
   editMode={editMode}
   wishlistSet={wishlistSet}
   onEdit={(prod) => {
@@ -408,15 +403,18 @@ useEffect(() => {
       </div>
 
       <UnlockModal
-        open={unlockOpen}
-        onClose={() => setUnlockOpen(false)}
-        showingPrices={showPrices}
-        onShowPrices={() => {
-          setShowPrices(v => { const nv = !v; toast.info(nv ? 'Prices visible' : 'Prices hidden'); return nv })
-        }}
-        onEditMode={() => { setEditMode(true); setUnlockOpen(false); toast.success('Edit mode unlocked ✨') }}
-        adminPassword={branding.admin_password || DEFAULT_BRANDING.admin_password}
-      />
+  open={unlockOpen}
+  onClose={() => setUnlockOpen(false)}
+  onEditMode={() => {
+    setEditMode(true)
+    setUnlockOpen(false)
+    toast.success('Edit mode unlocked ✨')
+  }}
+  adminPassword={
+    branding.admin_password ||
+    DEFAULT_BRANDING.admin_password
+  }
+/>
 
       <ProductEditor
         open={editorOpen}
@@ -456,7 +454,6 @@ useEffect(() => {
 {sharedCatalog && (
   <SharedCatalog
     products={sharedCatalog}
-    showPrices={showPrices}
     onClose={() => {
       setSharedCatalog(null)
 

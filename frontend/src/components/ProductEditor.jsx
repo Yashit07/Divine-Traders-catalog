@@ -24,6 +24,7 @@ function blankForm() {
     image_url: '',
     image_urls: [],
     variants: [],
+    out_of_stock: false,
   }
 }
 
@@ -85,6 +86,7 @@ export default function ProductEditor({
           price: v.price ?? '',
           image_url: v.image_url || '',
         })),
+        out_of_stock: Boolean(initial.out_of_stock),
       })
 
       setHasVariants((initial.variants || []).length > 0)
@@ -431,6 +433,8 @@ export default function ProductEditor({
          */
         image_urls: cleanedImages,
 
+        out_of_stock: Boolean(form.out_of_stock),
+
         variants: hasVariants
           ? form.variants
               .filter(v => v.name.trim())
@@ -750,6 +754,50 @@ export default function ProductEditor({
               (flavors/shades/sizes)
             </label>
           </div>
+
+          {/* Stock Status */}
+{editing && (
+  <div className="flex items-center gap-3 bg-ivory-50 rounded-2xl px-4 py-3 border border-ivory-200">
+    <button
+      type="button"
+      role="switch"
+      aria-checked={form.out_of_stock}
+      onClick={() =>
+        setForm(current => ({
+          ...current,
+          out_of_stock: !current.out_of_stock,
+        }))
+      }
+      className={`relative w-12 h-7 rounded-full transition-all flex-shrink-0 ${
+        form.out_of_stock
+          ? 'bg-red-500'
+          : 'bg-emerald-500'
+      }`}
+    >
+      <span
+        className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+          form.out_of_stock
+            ? 'translate-x-6'
+            : 'translate-x-1'
+        }`}
+      />
+    </button>
+
+    <div className="flex-1">
+      <div className="font-bold text-cocoa-900 text-sm">
+        {form.out_of_stock
+          ? '🔴 Out of Stock'
+          : '🟢 In Stock'}
+      </div>
+
+      <div className="text-[11px] text-cocoa-500 mt-0.5">
+        {form.out_of_stock
+          ? 'Customers will see that this product is currently unavailable.'
+          : 'Product is currently available.'}
+      </div>
+    </div>
+  </div>
+)}
 
           {/* Price */}
           {!hasVariants && (

@@ -89,7 +89,6 @@ function ImageElement({
 
 export default function ProductCard({
   product,
-  showPrices,
   editMode,
   onEdit,
   onDelete,
@@ -97,6 +96,7 @@ export default function ProductCard({
   onToggleWishlist,
 }) {
   const hasVariants = (product.variants || []).length > 0
+  const outOfStock = Boolean(product.out_of_stock)
 
   /*
    * ============================================================
@@ -950,6 +950,13 @@ if (
             </div>
           )}
 
+          {/* Out of stock badge */}
+{outOfStock && (
+  <div className="absolute top-2 left-2 z-10 bg-red-500/95 text-white text-[10px] sm:text-xs font-black px-3 py-1.5 rounded-full shadow-md backdrop-blur-sm">
+    OUT OF STOCK
+  </div>
+)}
+
           {/* Image count */}
           {images.length > 1 && (
             <div className="absolute bottom-2 left-2 bg-cocoa-900/70 text-white text-[10px] font-bold px-2 py-1 rounded-full backdrop-blur-sm">
@@ -1061,16 +1068,9 @@ if (
                 Wholesale
               </div>
 
-              {showPrices ? (
-                <div className="text-lg sm:text-xl font-black text-shimmer">
-                  {formatPrice(price)}
-                </div>
-              ) : (
-                <div className="text-xs sm:text-sm font-semibold text-cocoa-500 flex items-center gap-1">
-                  <span>🔒</span>
-                  Unlock to view
-                </div>
-              )}
+              <div className="text-lg sm:text-xl font-black text-shimmer">
+  {formatPrice(price)}
+</div>
             </div>
 
             {editMode && (
@@ -1222,8 +1222,15 @@ if (
             </div>
 
             {/* Product information */}
-            <div className="product-viewer-content">
-              <div className="flex items-center gap-2 flex-wrap mb-2">
+<div className="product-viewer-content">
+
+  {outOfStock && (
+    <div className="inline-flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-full text-xs font-black mb-3">
+      🔴 OUT OF STOCK
+    </div>
+  )}
+
+  <div className="flex items-center gap-2 flex-wrap mb-2">
                 <span className="inline-flex items-center gap-1 bg-blush-50 border border-blush-100 px-3 py-1 rounded-full text-xs font-bold text-rose-500">
                   <span className="text-gold-500">
                     ✦
@@ -1292,15 +1299,9 @@ if (
                   Wholesale Price
                 </div>
 
-                {showPrices ? (
-                  <div className="text-2xl sm:text-3xl font-black text-shimmer mt-1">
-                    {formatPrice(price)}
-                  </div>
-                ) : (
-                  <div className="text-sm font-semibold text-cocoa-500 mt-1">
-                    🔒 Unlock to view wholesale price
-                  </div>
-                )}
+                <div className="text-lg sm:text-xl font-black text-shimmer">
+  {formatPrice(price)}
+</div>
               </div>
 
               {/* Dots */}
