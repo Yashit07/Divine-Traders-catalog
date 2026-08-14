@@ -41,21 +41,49 @@ function getProductImages(product, activeVariant) {
   return gallery
 }
 
-function ImageElement({ src, alt, className = '' }) {
+function ImageElement({
+  src,
+  alt,
+  className = '',
+  loading = 'lazy',
+  priority = false,
+}) {
   const imageUrl = optimizeImage(src, 1200)
+
+  const [loaded, setLoaded] = useState(false)
 
   if (!imageUrl) return null
 
   return (
-    <img
-      src={imageUrl}
-      alt={alt}
-      className={className}
-      draggable="false"
-      onError={(e) => {
-        e.currentTarget.style.display = 'none'
-      }}
-    />
+    <div className="relative w-full h-full">
+      {!loaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-ivory-50 via-blush-50 to-gold-50">
+          <div className="catalog-spinner-ring" />
+        </div>
+      )}
+
+      <img
+        src={imageUrl}
+        alt={alt}
+        className={`${className} ${
+          loaded
+            ? 'opacity-100'
+            : 'opacity-0'
+        } transition-opacity duration-300`}
+        loading={
+          priority ? 'eager' : loading
+        }
+        fetchPriority={
+          priority ? 'high' : 'auto'
+        }
+        decoding="async"
+        draggable="false"
+        onLoad={() => setLoaded(true)}
+        onError={(e) => {
+          e.currentTarget.style.display = 'none'
+        }}
+      />
+    </div>
   )
 }
 
@@ -905,12 +933,12 @@ if (
         {/* Image */}
         <div className="relative aspect-square bg-gradient-to-br from-ivory-50 via-blush-50 to-gold-50 overflow-hidden">
           {cardImage ? (
-            <ImageElement
-              src={cardImage}
-              alt={product.name}
-              className="w-full h-full object-contain p-2 transition-transform duration-500 group-hover:scale-105"
-            />
-          ) : (
+  <ImageElement
+    src={cardImage}
+    alt={product.name}
+    className="w-full h-full object-contain p-2 transition-transform duration-500 group-hover:scale-105"
+  />
+) : (
             <div className="w-full h-full flex flex-col items-center justify-center text-center px-4 text-blush-500">
               <span className="text-3xl sm:text-4xl mb-1 opacity-60">
                 📷

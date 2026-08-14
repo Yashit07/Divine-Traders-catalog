@@ -138,6 +138,59 @@ export async function resetCatalog() {
   await ensureSeeded()
 }
 
+// ---- Shared Catalogs ----
+
+export async function createSharedCatalog(products) {
+  const snapshot = products.map((p) => ({
+    id: p.id,
+    brand: p.brand || '',
+    name: p.name || '',
+    category: p.category || '',
+    description: p.description || '',
+    packaging: p.packaging || '',
+    price: p.price ?? null,
+    image_url: p.image_url || null,
+    image_urls: Array.isArray(p.image_urls)
+      ? p.image_urls.filter(Boolean)
+      : (p.image_url ? [p.image_url] : []),
+    variants: Array.isArray(p.variants)
+      ? p.variants.map((v) => ({
+          id: v.id,
+          name: v.name,
+          price: v.price ?? null,
+          image_url: v.image_url || null,
+          sort_order: v.sort_order ?? 0,
+        }))
+      : [],
+  }))
+
+  const { data, error } = await supabase
+    .from('shared_catalogs')
+    .insert({
+      products: snapshot,
+    })
+    .select('id')
+    .single()
+
+  if (error) throw error
+
+  return data.id
+}
+
+export async function fetchSharedCatalog(id) {
+  const { data, error } = await supabase
+    .from('shared_catalogs')
+    .select('products')
+    .eq('id', id)
+    .single()
+
+  if (error) throw error
+
+  return Array.isArray(data?.products)
+    ? data.products
+    : []
+}
+
 export function exportJson(products, branding) {
   return JSON.stringify({ exported_at: new Date().toISOString(), branding, products }, null, 2)
 }

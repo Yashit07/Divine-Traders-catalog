@@ -731,6 +731,229 @@ body {
   }
 }
 
+/* =========================================================
+   PROGRESSIVE CATALOG LOADING
+   ========================================================= */
+
+.catalog-loading-spinner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #a63d5a;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #f5ecd8;
+  box-shadow: 0 8px 24px rgba(43, 24, 16, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.catalog-spinner-ring {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #f5ecd8;
+  border-top-color: #a63d5a;
+  border-right-color: #d4a374;
+  animation: catalogSpinner 800ms linear infinite;
+}
+
+@keyframes catalogSpinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================================================
+   SHARED PRODUCT CATALOG
+   ========================================================= */
+
+.shared-catalog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 1rem 1.5rem;
+  background:
+    radial-gradient(
+      900px 600px at 50% 0%,
+      rgba(166, 61, 90, 0.28),
+      transparent 65%
+    ),
+    rgba(43, 24, 16, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: sharedCatalogIn 250ms ease-out;
+}
+
+.shared-catalog-heading {
+  position: absolute;
+  top: 1.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.shared-catalog-close {
+  position: absolute;
+  z-index: 30;
+  top: 1rem;
+  right: 1rem;
+  width: 3.25rem;
+  height: 3.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.14);
+  color: white;
+  font-size: 1.3rem;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: transform 180ms ease;
+}
+
+.shared-catalog-close:hover {
+  transform: scale(1.08);
+}
+
+.shared-catalog-stage {
+  position: relative;
+  width: min(760px, 90vw);
+  height: min(760px, 72vh);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shared-catalog-product {
+  width: min(680px, 78vw);
+  max-height: 72vh;
+  animation: sharedProductIn 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.shared-catalog-product > div {
+  max-height: 72vh;
+}
+
+.shared-catalog-arrow {
+  position: absolute;
+  z-index: 20;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.92);
+  color: #a63d5a;
+  border: 1px solid #f5ecd8;
+  box-shadow: 0 10px 30px rgba(43,24,16,0.2);
+  font-size: 2rem;
+}
+
+.shared-catalog-arrow-left {
+  left: -1.5rem;
+}
+
+.shared-catalog-arrow-right {
+  right: -1.5rem;
+}
+
+.shared-catalog-dots {
+  display: flex;
+  gap: 0.45rem;
+  margin-top: 0.6rem;
+}
+
+.shared-catalog-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.35);
+  transition: all 180ms ease;
+}
+
+.shared-catalog-dot.active {
+  width: 20px;
+  border-radius: 999px;
+  background: #d4a374;
+}
+
+.shared-catalog-hint {
+  color: rgba(255,255,255,0.65);
+  font-size: 0.65rem;
+  margin-top: 0.65rem;
+}
+
+.shared-catalog-empty {
+  position: relative;
+  width: min(420px, 92vw);
+  padding: 3rem 2rem;
+  text-align: center;
+  background: white;
+  border-radius: 2rem;
+}
+
+@keyframes sharedCatalogIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sharedProductIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(15px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .shared-catalog-overlay {
+    padding-top: 5rem;
+  }
+
+  .shared-catalog-stage {
+    width: 94vw;
+    height: 70vh;
+  }
+
+  .shared-catalog-product {
+    width: 76vw;
+  }
+
+  .shared-catalog-arrow {
+    width: 2.6rem;
+    height: 2.6rem;
+  }
+
+  .shared-catalog-arrow-left {
+    left: -0.3rem;
+  }
+
+  .shared-catalog-arrow-right {
+    right: -0.3rem;
+  }
+}
+
 ::-webkit-scrollbar { height: 8px; width: 8px; }
 ::-webkit-scrollbar-thumb { background: rgba(212, 163, 116, 0.4); border-radius: 999px; }
 ::-webkit-scrollbar-track { background: transparent; }

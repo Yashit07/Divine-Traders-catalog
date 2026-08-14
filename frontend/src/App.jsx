@@ -9,10 +9,21 @@ import AdminBar from './components/AdminBar'
 import SetupScreen from './components/SetupScreen'
 import ToastStack from './components/Toast'
 import WishlistDrawer from './components/WishlistDrawer'
+import SharedCatalog from './components/SharedCatalog'
+
 import {
-  fetchProducts, insertProduct, updateProduct, deleteProduct,
-  fetchBranding, upsertBranding, ensureSeeded, resetCatalog, exportJson,
+  fetchProducts,
+  insertProduct,
+  updateProduct,
+  deleteProduct,
+  fetchBranding,
+  upsertBranding,
+  ensureSeeded,
+  resetCatalog,
+  exportJson,
+  fetchSharedCatalog,
 } from './lib/db'
+
 import { SUPABASE_READY } from './lib/supabase'
 import { DEFAULT_BRANDING } from './lib/seed'
 import { toast } from './lib/toast'
@@ -28,6 +39,81 @@ function lsGet(k, def) {
 }
 function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)) } catch { /* ignore */ } }
 
+function ProgressiveProductGrid({
+  products,
+  showPrices,
+  editMode,
+  wishlistSet,
+  onEdit,
+  onDelete,
+  onToggleWishlist,
+}) {
+  const [visibleCount, setVisibleCount] = useState(12)
+
+  useEffect(() => {
+    setVisibleCount(12)
+  }, [products])
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight +
+          window.scrollY >=
+        document.documentElement.scrollHeight - 900
+      ) {
+        setVisibleCount(current =>
+          Math.min(
+            current + 12,
+            products.length
+          )
+        )
+      }
+    }
+
+    window.addEventListener(
+      'scroll',
+      handleScroll,
+      { passive: true }
+    )
+
+    return () =>
+      window.removeEventListener(
+        'scroll',
+        handleScroll
+      )
+  }, [products.length])
+
+  const visibleProducts =
+    products.slice(0, visibleCount)
+
+  return (
+    <>
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+        {visibleProducts.map(product => (
+          <ProductCard
+            key={product.id}
+            product={product}
+            showPrices={showPrices}
+            editMode={editMode}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            inWishlist={wishlistSet.has(product.id)}
+            onToggleWishlist={onToggleWishlist}
+          />
+        ))}
+      </div>
+
+      {visibleCount < products.length && (
+        <div className="flex justify-center py-8">
+          <div className="catalog-loading-spinner">
+            <div className="catalog-spinner-ring" />
+            <span>Loading more products…</span>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
 export default function App() {
   const [products, setProducts] = useState([])
   const [branding, setBranding] = useState(DEFAULT_BRANDING)
@@ -44,12 +130,14 @@ export default function App() {
   const [wishlist, setWishlist] = useState(() => lsGet(LS_KEYS.wishlist, [])) // array of product IDs
 
   const [unlockOpen, setUnlockOpen] = useState(false)
-  const [editorOpen, setEditorOpen] = useState(false)
-  const [brandingOpen, setBrandingOpen] = useState(false)
-  const [wishlistOpen, setWishlistOpen] = useState(false)
-  const [editing, setEditing] = useState(null)
+const [editorOpen, setEditorOpen] = useState(false)
+const [brandingOpen, setBrandingOpen] = useState(false)
+const [wishlistOpen, setWishlistOpen] = useState(false)
+const [sharedCatalog, setSharedCatalog] = useState(null)
+const [sharedCatalogLoading, setSharedCatalogLoading] = useState(false)
+const [editing, setEditing] = useState(null)
 
-  const catalogRef = useRef(null)
+const catalogRef = useRef(null)
 
   // Persist state
   useEffect(() => { lsSet(LS_KEYS.showPrices, showPrices) }, [showPrices])
@@ -75,6 +163,65 @@ export default function App() {
   }
 
   useEffect(() => { loadAll() }, [])
+useEffect(() => {
+  const params = new URLSearchParams(
+    window.location.search
+  )
+
+  const catalogId =
+    params.get('catalog')
+
+  if (!catalogId) return
+
+  let cancelled = false
+
+  async function loadSharedCatalog() {
+    setSharedCatalogLoading(true)
+
+    try {
+      const savedProducts =
+        await fetchSharedCatalog(catalogId)
+
+      if (!cancelled) {
+        setSharedCatalog(savedProducts)
+      }
+    } catch (error) {
+      console.error(
+        'Shared catalog error:',
+        error
+      )
+
+      if (!cancelled) {
+        setSharedCatalog([])
+      }
+    } finally {
+      if (!cancelled) {
+        setSharedCatalogLoading(false)
+      }
+    }
+  }
+
+  loadSharedCatalog()
+
+  return () => {
+    cancelled = true
+  }
+}, [])
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search)
+  const catalog = params.get('catalog')
+
+  if (!catalog) return
+
+  const ids = catalog
+    .split(',')
+    .map(id => id.trim())
+    .filter(Boolean)
+
+  if (ids.length > 0) {
+    setSharedCatalogIds(ids)
+  }
+}, [])
 
   const counts = useMemo(() => {
     const c = { All: products.length }
@@ -229,20 +376,18 @@ export default function App() {
               <p className="text-cocoa-500">No products match your search.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-              {filtered.map((p) => (
-                <ProductCard
-                  key={p.id}
-                  product={p}
-                  showPrices={showPrices}
-                  editMode={editMode}
-                  onEdit={(prod) => { setEditing(prod); setEditorOpen(true) }}
-                  onDelete={handleDeleteProduct}
-                  inWishlist={wishlistSet.has(p.id)}
-                  onToggleWishlist={toggleWishlist}
-                />
-              ))}
-            </div>
+            <ProgressiveProductGrid
+  products={filtered}
+  showPrices={showPrices}
+  editMode={editMode}
+  wishlistSet={wishlistSet}
+  onEdit={(prod) => {
+    setEditing(prod)
+    setEditorOpen(true)
+  }}
+  onDelete={handleDeleteProduct}
+  onToggleWishlist={toggleWishlist}
+/>
           )}
         </>
         )}
@@ -310,11 +455,47 @@ export default function App() {
         phone={branding.phone1}
       />
 
-      <ToastStack />
+      {sharedCatalogLoading && (
+  <div className="fixed inset-0 z-[200] flex items-center justify-center bg-cocoa-900/80 backdrop-blur-md">
+    <div className="flex flex-col items-center gap-3 text-white">
+      <div className="catalog-spinner-ring" />
 
-      <footer className="text-center text-xs text-cocoa-500 py-6 safe-bottom">
-        © {new Date().getFullYear()} {branding.business_name || 'Divine Traders'} — Made with 🌸
-      </footer>
+      <span className="text-xs font-semibold">
+        Opening your catalog…
+      </span>
+    </div>
+  </div>
+)}
+
+{sharedCatalog && (
+  <SharedCatalog
+    products={sharedCatalog}
+    showPrices={showPrices}
+    onClose={() => {
+      setSharedCatalog(null)
+
+      const url = new URL(
+        window.location.href
+      )
+
+      url.searchParams.delete('catalog')
+
+      window.history.replaceState(
+        {},
+        '',
+        url.pathname +
+          url.search +
+          url.hash
+      )
+    }}
+  />
+)}
+
+<ToastStack />
+
+<footer className="text-center text-xs text-cocoa-500 py-6 safe-bottom">
+  © {new Date().getFullYear()} {branding.business_name || 'Divine Traders'} — Made with 🌸
+</footer>
     </div>
   )
 }
